@@ -1,16 +1,14 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Portfol.io.Identity.Common.TokenIssue;
 using Portfol.io.Identity.Interfaces;
 using Portfol.io.Identity.Models;
 using Portfol.io.Identity.ViewModels;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
-using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
 
@@ -37,50 +35,6 @@ namespace Portfol.io.Identity.Controllers
             _emailSender = emailSender;
             _roleManager = roleManager;
             _tokenManager = tokenManager;
-        }
-
-        /// <summary>
-        /// Get a list of available roles
-        /// </summary>
-        /// <remarks>
-        /// Sample request:
-        /// GET /get_roles
-        /// </remarks>
-        /// <returns>Returns
-        /// {
-        ///     "roles": [
-        ///         {
-        ///             "id": "string",
-        ///             "name": "string"
-        ///         },
-        ///         ...
-        ///     ]
-        /// }
-        /// </returns>
-        /// <response code="404">If roles not found. With JSON message.</response>
-        /// <response code="200">Success</response>
-
-        [HttpGet("get_roles")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public IActionResult GetRolesList()
-        {
-            var roles = _roleManager.Roles.Where(o => new List<string> { "employee", "employer" }.Contains(o.Name)).ToList();
-
-            if (roles.Count() == 0) return NotFound(new {message = "Roles not found."});
-
-            var rolesVM = new List<RoleViewModel>();
-
-            foreach (var role in roles)
-            {
-                rolesVM.Add(new RoleViewModel
-                {
-                    Id = role.Id,
-                    Name = role.Name
-                });
-            }
-
-            return Ok(new { roles = rolesVM });
         }
 
         /// <summary>
@@ -232,7 +186,7 @@ namespace Portfol.io.Identity.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(new { message = "Model is not valid." });
 
-            var user = new AppUser { UserName = model.Username, Email = model.Email };
+            var user = new AppUser { UserName = model.Username, Email = model.Email, DateOfCreation = DateTime.UtcNow };
 
             var role = await _roleManager.FindByIdAsync(model.RoleId);
 
@@ -490,6 +444,7 @@ namespace Portfol.io.Identity.Controllers
         /// <response code="200">Success</response>
 
         [HttpPost("refresh_token")]
+        [Authorize]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenViewModel model)
@@ -527,7 +482,48 @@ namespace Portfol.io.Identity.Controllers
                 refresh_token = newRefreshToken
             });
         }
-        
-        //TODO: Добавить Revoke метод
+
+        /// <summary>
+        /// Refresh token revocation
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        /// POST /revoke?userId="user id"
+        /// </remarks>
+        /// <param name="userId"></param>
+        /// <returns></returns>
+        /// <response code="200">Succeess</response>
+        /// <response code="204">If none of the conditions are met.</response>
+        /// <response code="400">if there were errors during password reset. With JSON message.</response>
+        /// <response code="404">If user not found. With JSON message.</response>
+
+        [HttpPost("revoke")]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Revoke(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user is null) return NotFound(new { message = "User not found." });
+
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = default(DateTime);
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (result.Succeeded)
+            {
+                return Ok();
+            }
+            foreach (var error in result.Errors)
+            {
+                return BadRequest(new { message = error.Description });
+            }
+
+            return NoContent();
+        }
     }
 }

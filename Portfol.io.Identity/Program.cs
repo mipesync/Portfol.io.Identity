@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Portfol.io.Identity.Common.Mappings;
 using Portfol.io.Identity.Common.Services;
 using Portfol.io.Identity.Common.TokenIssue;
 using Portfol.io.Identity.Data;
@@ -51,10 +53,35 @@ builder.Services.AddSwaggerGen(config =>
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     config.IncludeXmlComments(xmlPath);
+
+    config.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Insert JWT with Bearer into field",
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey
+    });
+
+    config.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+            Reference = new OpenApiReference
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+            },
+            new string[] { }
+        }
+    });
 });
 
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddTransient<ITokenManager, TokenManager>();
+builder.Services.AddAutoMapper(u => u.AddProfile(new AssemblyMappingProfile(Assembly.GetExecutingAssembly())));
+builder.Services.AddTransient<IFileUploader, FileUploader>();
 
 var app = builder.Build();
 
