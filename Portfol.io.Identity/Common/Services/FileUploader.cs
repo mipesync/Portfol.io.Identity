@@ -6,6 +6,7 @@ namespace Portfol.io.Identity.Common.Services
     {
         public IFormFile File { get; set; } = null!;
         public string AbsolutePath { get; set; } = null!;
+        public string WebRootPath { get; set; } = null!;
 
         public async Task<string> UploadFileAsync()
         {
@@ -15,7 +16,7 @@ namespace Portfol.io.Identity.Common.Services
 
             Directory.CreateDirectory(AbsolutePath);
 
-            using (var fileStream = new FileStream(path, FileMode.Create))
+            using (var fileStream = new FileStream($"{WebRootPath}{path}", FileMode.Create))
             {
                 await File.CopyToAsync(fileStream);
             }

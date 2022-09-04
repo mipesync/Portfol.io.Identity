@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -7,6 +6,9 @@ using Portfol.io.Identity.Common.TokenIssue;
 using Portfol.io.Identity.Interfaces;
 using Portfol.io.Identity.Models;
 using Portfol.io.Identity.ViewModels;
+using Portfol.io.Identity.ViewModels.ResponseModels;
+using Portfol.io.Identity.ViewModels.ResponseModels.AuthResponseModels;
+using Swashbuckle.AspNetCore.Annotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Text;
@@ -16,7 +18,7 @@ namespace Portfol.io.Identity.Controllers
 {
     [ApiController]
     [Produces("application/json")]
-    [Route("api/[controller]/[action]")]
+    [Route("api/auth")]
     public class AuthController : Controller
     {
         private readonly UserManager<AppUser> _userManager;
@@ -38,52 +40,47 @@ namespace Portfol.io.Identity.Controllers
         }
 
         /// <summary>
-        /// Authenticates the user
+        /// Authenticates the user.
         /// </summary>
-        /// <remarks>
+        /// <remarks> 
+        /// Issues an access token and, if "remember me" is true, issues a refresh token.
         /// Sample request:
-        /// POST /login
-        /// {
-        ///     username: "usename",
-        ///     password: "password",
-        ///     rememberMe: bool,
-        ///     returnUrl: "return_url"
-        /// }
+        /// 
+        ///     POST: /api/auth/login
+        ///     {
+        ///         username: user,
+        ///         password: 12345678,
+        ///         rememberMe: true,
+        ///         returnUrl: http://example.com/catalog
+        ///     }
         /// </remarks>
         /// <param name="model"></param>
-        /// <returns>Returns
-        /// {
-        ///     "access_token": "jwt bearer with claims: name - username, name_identifier - userId, role",
-        ///     "expires": "DataTime",
-        ///     "refresh_token": "string",
-        ///     "returnUrl": "string"
-        /// }
-        /// </returns>
-        /// <response code="400">If model is not valid. With JSON message.</response>
-        /// <response code="400">If invalid login attempt. With JSON message.</response>
-        /// <response code="404">If user not found. With JSON message.</response>
-        /// <response code="403">If email not confimed. With JSON message.</response>
-        /// <response code="403">If user account locked out. With JSON message.</response>
+        /// <returns>Returns <see cref="LoginResponse"/></returns>
+        /// <response code="400">If model is not valid. </response>
+        /// <response code="400">If invalid login attempt. </response>
+        /// <response code="404">If the user is not found. </response>
+        /// <response code="403">If email not confimed. </response>
+        /// <response code="403">If user account locked out. </response>
         /// <response code="200">Success</response>
 
         [HttpPost("login")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(LoginResponse))]
+        [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
+        [SwaggerResponse(statusCode: StatusCodes.Status403Forbidden, type: typeof(Error))]
+        [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> Login([FromBody] LoginViewModel model)
         {
-            if (!ModelState.IsValid) return BadRequest(new { message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
             var user = await _userManager.FindByNameAsync(model.Username);
 
             if (user is null || user.UserName != model.Username)
             {
-                return NotFound(new { message = "User not found." });
+                return NotFound(new Error { Message = "User not found." });
             }
             if (!user.EmailConfirmed)
             {
                 _logger.LogWarning("Email not confimed.");
-                return StatusCode((int)HttpStatusCode.Forbidden, new {message = "Email not confimed." });
+                return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Email not confimed." });
             }
 
             var result = await _signInManager.PasswordSignInAsync(user, model.Password, model.RememberMe, false);
@@ -108,7 +105,7 @@ namespace Portfol.io.Identity.Controllers
 
                 await _userManager.UpdateAsync(user);
 
-                return Ok(new
+                return Ok(new LoginResponse
                 {
                     access_token = new JwtSecurityTokenHandler().WriteToken(accessToken),
                     expires = accessToken.ValidTo,
@@ -123,7 +120,7 @@ namespace Portfol.io.Identity.Controllers
                 user.AccessFailedCount = 0;
                 await _userManager.UpdateAsync(user);
 
-                return StatusCode((int)HttpStatusCode.Forbidden, new { message = "User account locked out." });
+                return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "User account locked out." });
             }
             else
             {
@@ -137,64 +134,60 @@ namespace Portfol.io.Identity.Controllers
 
                 await _userManager.UpdateAsync(user);
 
-                return BadRequest(new { message = "Invalid login attempt." });
+                return BadRequest(new Error { Message = "Invalid login attempt." });
             }
         }
 
-        [HttpPost]
+        /*[HttpPost]
         public async Task Logout()
         {
             //TODO: Разобраться
             await _signInManager.SignOutAsync();
             _logger.LogInformation("User logged out.");
-        }
+        }*/
 
         /// <summary>
         /// Registers a user
         /// </summary>
         /// <remarks>
         /// Sample request:
-        /// POST /register
-        /// {
-        ///     username: "usename",
-        ///     email: "email",
-        ///     password: "password",
-        ///     roleId: "roleId",
-        ///     returnUrl: "return_url"
-        /// }
+        /// 
+        ///     POST: /api/auth/register
+        ///     {
+        ///         username: user,
+        ///         email: user@example.com,
+        ///         password: 12345678,
+        ///         roleId: 4C2C522E-F785-4EB4-8ED7-260861453330,
+        ///         returnUrl: http://example.com/catalog
+        ///     }
         /// </remarks>
         /// <param name="model"></param>
-        /// <returns>Returns
-        /// {
-        ///     "userId": "guid",
-        ///     "returnUrl": "string"
-        /// }
-        /// </returns>
-        /// <response code="400">If model is not valid. With JSON message.</response>
-        /// <response code="400">If user with this email already exists. With JSON message.</response>
-        /// <response code="400">if there were errors during user creation. With JSON message.</response>
-        /// <response code="404">If role not found. With JSON message.</response>
+        /// <returns>Returns <see cref="RegisterResponse"/></returns>
+        /// <response code="400">If model is not valid. </response>
+        /// <response code="400">If user with this email already exists. </response>
+        /// <response code="400">If there were errors. </response>
+        /// <response code="404">If role not found. </response>
         /// <response code="200">Success</response>
         /// <response code="204">If none of the conditions are met.</response>
 
         [HttpPost("register")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(RegisterResponse))]
+        [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: null)]
+        [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
+        [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
         {
-            if (!ModelState.IsValid) return BadRequest(new { message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
 
             var user = new AppUser { UserName = model.Username, Email = model.Email, DateOfCreation = DateTime.UtcNow };
 
             var role = await _roleManager.FindByIdAsync(model.RoleId);
 
-            if (role is null) return NotFound(new {message = "Role not found."});
+            if (role is null) return NotFound(new Error { Message = "Role not found."});
 
             var getUser = await _userManager.FindByEmailAsync(model.Email);
 
-            if (getUser is not null) return BadRequest(new { message = $"A user with this email already exists." });
+            if (getUser is not null) return BadRequest(new Error { Message = $"A user with this email already exists." });
 
             var result = await _userManager.CreateAsync(user, model.Password);
 
@@ -218,48 +211,49 @@ namespace Portfol.io.Identity.Controllers
                 {
                     await _signInManager.SignInAsync(user, isPersistent: false);
                     var accessToken = _tokenManager.CreateAccessToken(user, role.Name);
-                    return Ok(new
+                    return Ok(new 
                     {
                         userId = userId,
                         returnUrl = model.ReturnUrl!,
                         access_token = new JwtSecurityTokenHandler().WriteToken(accessToken),
                         expires = accessToken.ValidTo
-                    }); ;
+                    });
                 }
-                return Ok(new { userId = userId, returnUrl = model.ReturnUrl! });
+                return Ok(new RegisterResponse { userId = userId, returnUrl = model.ReturnUrl! });
             }
             foreach (var error in result.Errors)
             {
-                return BadRequest(new { message = error.Description });
+                return BadRequest(new Error { Message = error.Description });
             }
 
             return NoContent();
         }
 
         /// <summary>
-        /// When the user is forgot the password
+        /// When the user is forgot the password.
         /// </summary>
         /// <remarks>
-        /// Sample request:
-        /// POST /forgot_password?email="user_email"
+        /// Sends a confirmation email. Sample request: 
+        /// 
+        ///     GET: /api/auth/forgot_password?email=user@example.com
         /// </remarks>
-        /// <param name="email"></param>
-        /// <response code="400">If model is not valid. With JSON message.</response>
-        /// <response code="400">If user does not exist or is not confirmed. With JSON message.</response>
+        /// <param name="email">The user's email address to which the confirmation email will be sent.</param>
+        /// <response code="400">If model is not valid. </response>
+        /// <response code="400">If user does not exist or is not confirmed. </response>
         /// <response code="200">Success</response>
 
-        [HttpPost("forgot_password")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [HttpGet("forgot_password")]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
+        [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
         public async Task<IActionResult> ForgotPassword(string email)
         {
-            if (!ModelState.IsValid) return BadRequest(new { message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
 
             var user = await _userManager.FindByEmailAsync(email);
 
             if (user == null || !(await _userManager.IsEmailConfirmedAsync(user)))
             {
-                return BadRequest(new { message = "The user does not exist or is not confirmed." });
+                return BadRequest(new Error { Message = "The user does not exist or is not confirmed." });
             }
 
             var code = await _userManager.GeneratePasswordResetTokenAsync(user);
@@ -277,43 +271,39 @@ namespace Portfol.io.Identity.Controllers
         }
 
         /// <summary>
-        /// Password reset
+        /// Resets the password.
         /// </summary>
         /// <remarks>
-        /// Sample request:
-        /// POST /reset_password
-        /// {
-        ///     email: "email",
-        ///     code: "code",
-        ///     password: "password"
-        /// }
+        /// Accepts the code that was sent to the mail. Sample request:
+        /// 
+        ///     POST: /api/auth/reset_password
+        ///     {
+        ///         email: user@example.com,
+        ///         code: your code,
+        ///         password: 12345678
+        ///     }
         /// </remarks>
         /// <param name="model"></param>
-        /// <returns>Returns
-        /// {
-        ///     "message": "Password has been reset"
-        /// }
-        /// </returns>
-        /// <response code="400">If model is not valid. With JSON message.</response>
-        /// <response code="400">if there were errors during password reset. With JSON message.</response>
-        /// <response code="404">If user not found. With JSON message.</response>
+        /// <response code="400">If model is not valid. </response>
+        /// <response code="400">if there were errors during password reset. </response>
+        /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
         /// <response code="204">If none of the conditions are met.</response>
 
         [HttpPost("reset_password")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
+        [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: null)]
+        [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
+        [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordViewModel model)
         {
-            if (!ModelState.IsValid) return BadRequest(new { message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
 
             var user = await _userManager.FindByEmailAsync(model.Email);
 
             if (user == null)
             {
-                return NotFound(new { message = "User not found." });
+                return NotFound(new Error { Message = "User not found." });
             }
 
             var encodeCode = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(model.Code));
@@ -322,39 +312,35 @@ namespace Portfol.io.Identity.Controllers
 
             if (result.Succeeded)
             {
-                return Ok(new { message = "Password has been reset" });
+                return Ok();
             }
             foreach (var error in result.Errors)
             {
-                return BadRequest(new { message = error.Description });
+                return BadRequest(new Error { Message = error.Description });
             }
 
             return NoContent();
         }
 
         /// <summary>
-        /// Confirm email
+        /// Email confirmation.
         /// </summary>
-        /// <remarks>
-        /// Sample request:
-        /// POST /confirm_email?userId="guid"&amp;code="email_confirmation_code"&amp;returnUrl="url"
+        /// <remarks> 
+        /// Sends a confirmation email. Sample request:
+        /// 
+        ///     POST: /api/auth/confirm_email?userId=4C2C522E-F785-4EB4-8ED7-260861453330&amp;code=your_code&amp;returnUrl=http://example.com/catalog
         /// </remarks>
-        /// <returns>Returns
-        /// {
-        ///     "message" = "Email has been confirmed",
-        ///     "returnUrl": "..."
-        /// }
-        /// </returns>
-        /// <response code="400">if an error occurred while email confirmation. With JSON message.</response>
-        /// <response code="404">If user not found. With JSON message.</response>
+        /// <returns>Returns <see cref="ConfirmEmailResponse"/></returns>
+        /// <response code="400">if an error occurred while email confirmation.</response>
+        /// <response code="404">If the user is not found.</response>
         /// <response code="200">Success</response>
         /// <response code="204">If userId or code is null.</response>
 
         [HttpPost("confirm_email")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(ConfirmEmailResponse))]
+        [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: null)]
+        [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
+        [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> ConfirmEmail(string userId, string code, string? returnUrl)
         {
             if (userId == null || code == null)
@@ -366,7 +352,7 @@ namespace Portfol.io.Identity.Controllers
 
             if (user == null)
             {
-                return NotFound($"User not found.");
+                return NotFound(new Error { Message = "User not found." });
             }
 
             code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
@@ -375,35 +361,43 @@ namespace Portfol.io.Identity.Controllers
 
             if (result.Succeeded)
             {
-                return Ok(new { message = "Email has been confirmed", returnUrl = returnUrl });
+                return Ok(new ConfirmEmailResponse 
+                {
+                    message = "Email has been confirmed",
+                    returnUrl = returnUrl 
+                });
             }
-            else return BadRequest(new { message = "Error confirming email" });
+            else return BadRequest(new Error { Message = "Error confirming email" });
         }
 
         /// <summary>
-        /// Resend email confirmation
+        /// Resends the confirmation email.
         /// </summary>
         /// <remarks>
+        /// Resends the confirmation email if the previous one was not delivered.
         /// Sample request:
-        /// POST /reconfirm_email?email="user email"&amp;returnUrl="url"
+        /// 
+        ///     GET: /api/auth/reconfirm_email?email=user@example.com&amp;returnUrl=http://example.com/catalog
         /// </remarks>
-        /// <response code="400">If model is not valid. With JSON message.</response>
-        /// <response code="400">If user with this email already exists. With JSON message.</response>
+        /// <param name="email">The user's email address to which the confirmation email will be sent.</param>
+        /// <param name="returnUrl">The return URL to which the user will be returned after confirmation of the mail.</param>
+        /// <response code="400">If model is not valid.</response>
+        /// <response code="404">If the user is not found.</response>
         /// <response code="200">Success</response>
 
-        [HttpPost("reconfirm_email")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [HttpGet("reconfirm_email")]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
+        [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
+        [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> ResendEmailConfirmation(string email, string? returnUrl)
         {
-            if (!ModelState.IsValid) return BadRequest(new { message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
 
             var user = await _userManager.FindByEmailAsync(email);
 
             if (user == null)
             {
-                return NotFound(new { message = "User not found." });
+                return NotFound(new Error { Message = "User not found." });
             }
 
             var userId = await _userManager.GetUserIdAsync(user);
@@ -421,48 +415,42 @@ namespace Portfol.io.Identity.Controllers
         }
 
         /// <summary>
-        /// Refreshes the access token and refresh token
+        /// Refreshes the access token and refresh token.
         /// </summary>
         /// <remarks>
         /// Sample request:
-        /// POST /refresh_token
-        /// {
-        ///     access_token = "string",
-        ///     refresh_token: "string"
-        /// }
+        /// 
+        ///     PUT: /api/auth/refresh_token
+        ///     {
+        ///         access_token = jwt token,
+        ///         refresh_token: your refresh token
+        ///     }
         /// </remarks>
-        /// <returns>Returns
-        /// {
-        ///     "access_token" = "jwt token",
-        ///     "expire" = "DateTime",
-        ///     "refresh_token" = "string"
-        /// }
-        /// </returns>
-        /// <response code="400">if an error occurred while email confirmation. With JSON message.</response>
-        /// <response code="400">if invalid access token. With JSON message.</response>
-        /// <response code="400">if invalid access token or refresh token. With JSON message.</response>
+        /// <returns>Returns <see cref="RefreshTokenResponse"/></returns>
+        /// <response code="400">if an error occurred while email confirmation. </response>
+        /// <response code="400">if invalid access token. </response>
+        /// <response code="400">if invalid access token or refresh token. </response>
         /// <response code="200">Success</response>
 
-        [HttpPost("refresh_token")]
-        [Authorize]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [HttpPut("refresh_token")]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(RefreshTokenResponse))]
+        [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenViewModel model)
         {
-            if (!ModelState.IsValid) return BadRequest(new { message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
 
             var accessToken = model.AccessToken;
             var refreshToken = model.RefreshToken;
 
             var principal = _tokenManager.GetPrincipalFromExpiredToken(accessToken);
 
-            if (principal is null) return BadRequest(new { message = "Invalid access token." });
+            if (principal is null) return BadRequest(new Error { Message = "Invalid access token." });
 
             var user = await _userManager.FindByNameAsync(principal.Identity!.Name);
 
             if  (user is null || user.RefreshToken != refreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
             {
-                return BadRequest(new { message = "Invalid access token or refresh token." });
+                return BadRequest(new Error { Message = "Invalid access token or refresh token." });
             }
 
             var roles = await _userManager.GetRolesAsync(user);
@@ -475,7 +463,7 @@ namespace Portfol.io.Identity.Controllers
 
             await _userManager.UpdateAsync(user);
 
-            return Ok(new
+            return Ok(new RefreshTokenResponse
             {
                 access_token = new JwtSecurityTokenHandler().WriteToken(newAccessToken),
                 expire = newAccessToken.ValidTo,
@@ -484,30 +472,29 @@ namespace Portfol.io.Identity.Controllers
         }
 
         /// <summary>
-        /// Refresh token revocation
+        /// Refresh token revocation.
         /// </summary>
         /// <remarks>
         /// Sample request:
-        /// POST /revoke?userId="user id"
+        /// 
+        ///     DELETE: /api/auth/revoke?userId=4C2C522E-F785-4EB4-8ED7-260861453330
         /// </remarks>
-        /// <param name="userId"></param>
-        /// <returns></returns>
+        /// <param name="userId">Id of the user to revoke the refresh token from.</param>
         /// <response code="200">Succeess</response>
         /// <response code="204">If none of the conditions are met.</response>
-        /// <response code="400">if there were errors during password reset. With JSON message.</response>
-        /// <response code="404">If user not found. With JSON message.</response>
+        /// <response code="400">if there were errors during password reset. </response>
+        /// <response code="404">If the user is not found. </response>
 
-        [HttpPost("revoke")]
-        [Authorize]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [HttpDelete("revoke")]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
+        [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: typeof(Error))]
+        [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
+        [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> Revoke(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
 
-            if (user is null) return NotFound(new { message = "User not found." });
+            if (user is null) return NotFound(new Error { Message = "User not found." });
 
             user.RefreshToken = null;
             user.RefreshTokenExpiryTime = default(DateTime);
@@ -520,7 +507,7 @@ namespace Portfol.io.Identity.Controllers
             }
             foreach (var error in result.Errors)
             {
-                return BadRequest(new { message = error.Description });
+                return BadRequest(new Error { Message = error.Description });
             }
 
             return NoContent();

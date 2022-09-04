@@ -20,8 +20,10 @@ builder.Services.AddDbContext<AppIdentityContext>(options =>
     options.UseNpgsql(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddRoles<IdentityRole>().AddEntityFrameworkStores<AppIdentityContext>();
+builder.Services.AddDefaultIdentity<AppUser>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = true;
+}).AddRoles<IdentityRole>().AddEntityFrameworkStores<AppIdentityContext>();
 
 builder.Services.AddAuthentication(options =>
 {
