@@ -95,7 +95,7 @@ namespace Portfol.io.Identity.Controllers
         public async Task<IActionResult> GetUserById(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            user.ProfileImagePath = $"{Request.Scheme}://{Request.Host}" + user.ProfileImagePath;
+            user.ProfileImagePath = UrlRaw + user.ProfileImagePath;
 
             if (user is null) return NotFound(new Error { Message = "User not found." });
 
@@ -124,7 +124,7 @@ namespace Portfol.io.Identity.Controllers
 
             foreach(var user in users)
             {
-                user.ProfileImagePath = $"{Request.Scheme}://{Request.Host}" + user.ProfileImagePath;
+                user.ProfileImagePath = UrlRaw + user.ProfileImagePath;
             }
 
             if (users.Count == 0) return NotFound(new Error { Message = "Users not found." });
