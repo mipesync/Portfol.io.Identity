@@ -23,7 +23,7 @@ namespace Portfol.io.Identity.Controllers
     [Authorize]
     [Produces("application/json")]
     [Route("api/user")]
-    public class UserController : Controller
+    public class UserController : BaseController
     {
         private readonly UserManager<AppUser> _userManager;
         private readonly SignInManager<AppUser> _signInManager;
@@ -95,7 +95,7 @@ namespace Portfol.io.Identity.Controllers
         public async Task<IActionResult> GetUserById(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            user.ProfileImagePath = _environment.WebRootPath + user.ProfileImagePath;
+            user.ProfileImagePath = $"{Request.Scheme}://{Request.Host}" + user.ProfileImagePath;
 
             if (user is null) return NotFound(new Error { Message = "User not found." });
 
@@ -124,7 +124,7 @@ namespace Portfol.io.Identity.Controllers
 
             foreach(var user in users)
             {
-                user.ProfileImagePath = _environment.WebRootPath + user.ProfileImagePath;
+                user.ProfileImagePath = $"{Request.Scheme}://{Request.Host}" + user.ProfileImagePath;
             }
 
             if (users.Count == 0) return NotFound(new Error { Message = "Users not found." });
@@ -141,29 +141,22 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sends a message with a link to change email. Sample request:
         /// 
-        ///     GET /api/user/change_email?userId=user@example.com&amp;newEmail=newUser@example.com
+        ///     POST /api/user/change_email?newEmail=newUser@example.com
         /// </remarks>
-        /// <param name="userId">The id of the user whose email needs to be changed.</param>
         /// <param name="newEmail">New user email</param>
         /// <response code="400">If model is not valid.</response>
-        /// <response code="403">If the user is wrong.</response>
         /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
 
-        [HttpGet("change_email")]
+        [HttpPost("change_email")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
-        [SwaggerResponse(statusCode: StatusCodes.Status403Forbidden, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
-        public async Task<IActionResult> ChangeEmail(string userId, string newEmail)
+        public async Task<IActionResult> ChangeEmail(string newEmail)
         {
             if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
 
-            var identityUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-
-            if (userId != identityUserId) return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Wrong user."});
-
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(UserId);
 
             if (user is null) return NotFound(new Error { Message = "User is found." });
 
@@ -171,7 +164,7 @@ namespace Portfol.io.Identity.Controllers
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
             var actionDesc = ControllerContext.ActionDescriptor;
             var callbackUrl = Url.ActionLink(nameof(ConfirmChangeEmail), $"{actionDesc.ControllerName}",
-                values: new { userId = userId, newEmail = newEmail, code = code });
+                values: new { userId = UserId, newEmail = newEmail, code = code });
 
             await _emailSender.SendEmailAsync(
                 user.Email,
@@ -187,13 +180,11 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sample request:
         /// 
-        ///     POST: /api/user/confirm_change_email?userId=33A5A12A-99A4-4770-80C4-C140F28B6E61&amp;newEmail=newUser@example.com&amp;code=your_code
+        ///     POST: /api/user/confirm_change_email?newEmail=newUser@example.com&amp;code=your_code
         /// </remarks>
-        /// <param name="userId">The id of the user whose email needs to be changed.</param>
         /// <param name="newEmail">New user email</param>
         /// <param name="code">Confirmation code</param>
         /// <response code="400">If there were errors.</response>
-        /// <response code="403">If the user is wrong.</response>
         /// <response code="404">If the user is not found.</response>
         /// <response code="204">If none of the conditions are met.</response>
         /// <response code="200">Success</response>
@@ -202,15 +193,10 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
-        [SwaggerResponse(statusCode: StatusCodes.Status403Forbidden, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
-        public async Task<IActionResult> ConfirmChangeEmail(string userId, string newEmail, string code)
+        public async Task<IActionResult> ConfirmChangeEmail(string newEmail, string code)
         {
-            var identityUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-
-            if (userId != identityUserId) return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Wrong user." });
-
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(UserId);
 
             if (user is null) return NotFound(new Error { Message = "User not found." });
 
@@ -237,29 +223,22 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sends an SMS message with a confirmation code. Sample request:
         /// 
-        ///     GET /api/user/change_phone?userId=33A5A12A-99A4-4770-80C4-C140F28B6E61&amp;newPhoneNumber=89121234567
+        ///     GET /api/user/change_phone?newPhoneNumber=89121234567
         /// </remarks>
-        /// <param name="userId">The id of the user whose phone needs to be changed.</param>
         /// <param name="newPhoneNumber">New user phone</param>
         /// <response code="400">If model is not valid. </response>
-        /// <response code="403">If the user is wrong.</response>
         /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
 
         [HttpGet("change_phone")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
-        [SwaggerResponse(statusCode: StatusCodes.Status403Forbidden, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
-        public async Task<IActionResult> ChangePhone(string userId, string newPhoneNumber)
+        public async Task<IActionResult> ChangePhone(string newPhoneNumber)
         {
             if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
 
-            var identityUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-
-            if (userId != identityUserId) return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Wrong user." });
-
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(UserId);
 
             if (user is null) return NotFound(new Error { Message = "User not found." });
 
@@ -276,13 +255,11 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sample request:
         /// 
-        ///     POST /api/user/change_phone?userId=33A5A12A-99A4-4770-80C4-C140F28B6E61&amp;newPhoneNumber=89121234567&amp;code=your_code
+        ///     POST /api/user/confirm_change_phone?newPhoneNumber=89121234567&amp;code=your_code
         /// </remarks>
-        /// <param name="userId">The id of the user whose phone needs to be changed.</param>
         /// <param name="newPhoneNumber">New user phone</param>
         /// <param name="code">Confirmation code</param>
         /// <response code="400">If there were errors.</response>
-        /// <response code="403">If the user is wrong.</response>
         /// <response code="404">If the user is not found. </response>
         /// <response code="204">If none of the conditions are met.</response>
         /// <response code="200">Success</response>
@@ -291,15 +268,10 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
-        [SwaggerResponse(statusCode: StatusCodes.Status403Forbidden, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
-        public async Task<IActionResult> ConfirmChangePhone(string userId, string newPhoneNumber, string code)
-        {
-            var identityUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-
-            if (userId != identityUserId) return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Wrong user." });
-
-            var user = await _userManager.FindByIdAsync(userId);
+        public async Task<IActionResult> ConfirmChangePhone(string newPhoneNumber, string code)
+        { 
+            var user = await _userManager.FindByIdAsync(UserId);
 
             if (user is null) return NotFound(new Error { Message = "User not found." });
 
@@ -326,7 +298,6 @@ namespace Portfol.io.Identity.Controllers
         /// 
         ///     PUT /api/user/update_user_details
         ///     {
-        ///         id: 33A5A12A-99A4-4770-80C4-C140F28B6E61,
         ///         name: Ivanov Ivan Ivanovich,
         ///         description: I'm Ivan,
         ///         dateOfBirth: 0000-00-00
@@ -334,7 +305,6 @@ namespace Portfol.io.Identity.Controllers
         /// </remarks>
         /// <response code="400">If model is not valid. </response>
         /// <response code="400">If there were errors.</response>
-        /// <response code="403">If the user is wrong.</response>
         /// <response code="404">If the user is not found. </response>
         /// <response code="204">If none of the conditions are met.</response>
         /// <response code="200">Success</response>
@@ -343,17 +313,12 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
-        [SwaggerResponse(statusCode: StatusCodes.Status403Forbidden, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> UpdateUserDetails([FromBody] UpdateUserDetailsViewModel model)
         {
             if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
 
-            var identityUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-
-            if (model.Id != identityUserId) return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Wrong user." });
-
-            var user = await _userManager.FindByIdAsync(model.Id);
+            var user = await _userManager.FindByIdAsync(UserId);
 
             if (user is null) return NotFound(new Error { Message = "User not found." });
 
@@ -382,14 +347,12 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sample request:
         /// 
-        ///     PUT: /api/user/update_profile_image?userId=33A5A12A-99A4-4770-80C4-C140F28B6E61
+        ///     PUT: /api/user/update_profile_image
         ///     Form object: file=file_object; type: image/jpeg
         /// </remarks>
-        /// <param name="userId">The id of the user whose profile image needs to be updated.</param>
         /// <param name="file">Image file. Support extensions: jpeg, png, jpg</param>
         /// <response code="400">If the file is empty. </response>
         /// <response code="400">If the file extension is wrong. </response>
-        /// <response code="403">If the user is wrong.</response>
         /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
 
@@ -397,15 +360,10 @@ namespace Portfol.io.Identity.Controllers
         [ValidateFileExtension("jpeg, png, jpg")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
-        [SwaggerResponse(statusCode: StatusCodes.Status403Forbidden, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
-        public async Task<IActionResult> UpdateProfileImage(IFormFile file, string userId)
+        public async Task<IActionResult> UpdateProfileImage(IFormFile file)
         {
-            var identityUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-
-            if (userId != identityUserId) return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Wrong user." });
-
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(UserId);
 
             if (user is null) return NotFound(new Error { Message = "User not found." });
 
@@ -414,7 +372,7 @@ namespace Portfol.io.Identity.Controllers
             if (file is default(IFormFile)) return BadRequest(new {message = "File is empty."});
 
             _fileUploader.File = file;
-            _fileUploader.AbsolutePath = $"/ProfileImages/{userId}/";
+            _fileUploader.AbsolutePath = $"/ProfileImages/{UserId}";
             _fileUploader.WebRootPath = _environment.WebRootPath;
 
             var filePath = await _fileUploader.UploadFileAsync();
@@ -432,24 +390,17 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sets the default profile image. Sample request:
         /// 
-        ///     DELETE: /api/user/remove_profile_image?userId=33A5A12A-99A4-4770-80C4-C140F28B6E61
+        ///     DELETE: /api/user/remove_profile_image
         /// </remarks>
-        /// <param name="userId">The id of the user whose profile image needs to be deleted.</param>
-        /// <response code="403">If the user is wrong.</response>
         /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
 
         [HttpDelete("remove_profile_image")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
-        [SwaggerResponse(statusCode: StatusCodes.Status403Forbidden, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
-        public async Task<IActionResult> RemoveProfileImage(string userId)
+        public async Task<IActionResult> RemoveProfileImage()
         {
-            var identityUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-
-            if (userId != identityUserId) return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Wrong user." });
-
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(UserId);
 
             if (user is null) return NotFound(new Error { Message = "User not found." });
 

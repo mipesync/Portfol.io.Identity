@@ -18,7 +18,7 @@ namespace Portfol.io.Identity.Common.TokenIssue
                 issuer: JwtOptions.ISSUER,
                 audience: JwtOptions.AUDIENCE,
                 claims: claims,
-                expires: JwtOptions.EXPIRES,
+                expires: new JwtOptions().EXPIRES,
                 signingCredentials: new SigningCredentials(JwtOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256));
 
             return jwt;

@@ -100,7 +100,7 @@ namespace Portfol.io.Identity.Controllers
                     refreshToken = _tokenManager.CreateRefreshToken();
 
                     user.RefreshToken = refreshToken;
-                    user.RefreshTokenExpiryTime = JwtOptions.RefreshTokenExpires;
+                    user.RefreshTokenExpiryTime = new JwtOptions().RefreshTokenExpires;
                 }
 
                 await _userManager.UpdateAsync(user);
@@ -459,7 +459,7 @@ namespace Portfol.io.Identity.Controllers
             var newRefreshToken = _tokenManager.CreateRefreshToken();
 
             user.RefreshToken = newRefreshToken;
-            user.RefreshTokenExpiryTime = JwtOptions.RefreshTokenExpires;
+            user.RefreshTokenExpiryTime = new JwtOptions().RefreshTokenExpires;
 
             await _userManager.UpdateAsync(user);
 
