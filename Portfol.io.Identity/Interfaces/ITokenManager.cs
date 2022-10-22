@@ -6,8 +6,8 @@ namespace Portfol.io.Identity.Interfaces
 {
     public interface ITokenManager
     {
-        public JwtSecurityToken CreateAccessToken(IdentityUser user, string role);
-        public string CreateRefreshToken();
-        public ClaimsPrincipal? GetPrincipalFromExpiredToken(string? token);
+        public Task<JwtSecurityToken> CreateAccessTokenAsync(IdentityUser user, string role);
+        public Task<string> CreateRefreshTokenAsync();
+        public Task<ClaimsPrincipal>? GetPrincipalFromExpiredTokenAsync(string? token);
     }
 }

@@ -19,7 +19,7 @@ namespace Portfol.io.Identity.Controllers
     [ApiController]
     [Produces("application/json")]
     [Route("api/auth")]
-    public class AuthController : Controller
+    public class AuthController : BaseController
     {
         private readonly UserManager<AppUser> _userManager;
         private readonly SignInManager<AppUser> _signInManager;
@@ -43,15 +43,14 @@ namespace Portfol.io.Identity.Controllers
         /// Authenticates the user.
         /// </summary>
         /// <remarks> 
-        /// Issues an access token and, if "remember me" is true, issues a refresh token.
-        /// Sample request:
+        /// Issues an access token and, if "remember me" is true, issues a refresh token. Sample request:
         /// 
         ///     POST: /api/auth/login
         ///     {
-        ///         username: user,
-        ///         password: 12345678,
-        ///         rememberMe: true,
-        ///         returnUrl: http://example.com/catalog
+        ///         "username": "user",
+        ///         "password": "Abcd_123",
+        ///         "rememberMe": "true",
+        ///         "returnUrl": "http://example.com/catalog"
         ///     }
         /// </remarks>
         /// <param name="model"></param>
@@ -89,7 +88,7 @@ namespace Portfol.io.Identity.Controllers
             {
                 _logger.LogInformation("User logged in.");
 
-                var accessToken = _tokenManager.CreateAccessToken(user, _userManager.GetRolesAsync(user).Result.FirstOrDefault()!);
+                var accessToken = await _tokenManager.CreateAccessTokenAsync(user, _userManager.GetRolesAsync(user).Result.FirstOrDefault()!);
                 var refreshToken = string.Empty;
 
                 user.LockoutEnd = null;
@@ -97,7 +96,7 @@ namespace Portfol.io.Identity.Controllers
 
                 if (model.RememberMe)
                 {
-                    refreshToken = _tokenManager.CreateRefreshToken();
+                    refreshToken = await _tokenManager.CreateRefreshTokenAsync();
 
                     user.RefreshToken = refreshToken;
                     user.RefreshTokenExpiryTime = new JwtOptions().RefreshTokenExpires;
@@ -150,15 +149,17 @@ namespace Portfol.io.Identity.Controllers
         /// Registers a user
         /// </summary>
         /// <remarks>
+        /// Password must be at least 8 characters, contains non-alphanumeric, digit and uppercase. 
+        /// The RoleId field is taken from the GET: ".../get_roles" request. There are two public roles: employee and employer. 
         /// Sample request:
         /// 
         ///     POST: /api/auth/register
         ///     {
-        ///         username: user,
-        ///         email: user@example.com,
-        ///         password: 12345678,
-        ///         roleId: 4C2C522E-F785-4EB4-8ED7-260861453330,
-        ///         returnUrl: http://example.com/catalog
+        ///         "username": "user",
+        ///         "email": "user@example.com",
+        ///         "password": "Abcd_123",
+        ///         "roleId": "4C2C522E-F785-4EB4-8ED7-260861453330",
+        ///         "returnUrl": "http://example.com/catalog"
         ///     }
         /// </remarks>
         /// <param name="model"></param>
@@ -200,9 +201,7 @@ namespace Portfol.io.Identity.Controllers
                 var userId = await _userManager.GetUserIdAsync(user);
                 var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                 code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-                var actionDesc = ControllerContext.ActionDescriptor;
-                var callbackUrl = Url.ActionLink(nameof(ConfirmEmail), $"{actionDesc.ControllerName}",
-                    values: new { userId = userId, code = code, returnUrl = model.ReturnUrl }, fragment: "api/");
+                var callbackUrl = $"{UrlRaw}/confirm_email?userId={userId}&code={code}&returnUrl={model.ReturnUrl}";
 
                 await _emailSender.SendEmailAsync(model.Email, "Confirm your email",
                     $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>clicking here</a>.");
@@ -210,7 +209,7 @@ namespace Portfol.io.Identity.Controllers
                 if (!_userManager.Options.SignIn.RequireConfirmedAccount)
                 {
                     await _signInManager.SignInAsync(user, isPersistent: false);
-                    var accessToken = _tokenManager.CreateAccessToken(user, role.Name);
+                    var accessToken = await _tokenManager.CreateAccessTokenAsync(user, role.Name);
                     return Ok(new 
                     {
                         userId = userId,
@@ -259,8 +258,7 @@ namespace Portfol.io.Identity.Controllers
             var code = await _userManager.GeneratePasswordResetTokenAsync(user);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
             var actionDesc = ControllerContext.ActionDescriptor;
-            var callbackUrl = Url.ActionLink(nameof(ResetPassword), $"{actionDesc.ControllerName}",
-                values: new { email = email, code = code }, fragment: "api/");
+            var callbackUrl = $"{UrlRaw}/reset_password?email={email}&code={code}";
 
             await _emailSender.SendEmailAsync(
                 email,
@@ -274,13 +272,15 @@ namespace Portfol.io.Identity.Controllers
         /// Resets the password.
         /// </summary>
         /// <remarks>
-        /// Accepts the code that was sent to the mail. Sample request:
+        /// Accepts the code that was sent to the mail. 
+        /// The page address must contain ".../reset_password". Example: http://example.com/reset_password 
+        /// Sample request:
         /// 
         ///     POST: /api/auth/reset_password
         ///     {
-        ///         email: user@example.com,
-        ///         code: your code,
-        ///         password: 12345678
+        ///         "email": "user@example.com",
+        ///         "code": "your code",
+        ///         "password": "Abcd_123"
         ///     }
         /// </remarks>
         /// <param name="model"></param>
@@ -325,8 +325,9 @@ namespace Portfol.io.Identity.Controllers
         /// <summary>
         /// Email confirmation.
         /// </summary>
-        /// <remarks> 
-        /// Sends a confirmation email. Sample request:
+        /// <remarks>
+        /// The page address must contain ".../confirm_email". Example: http://example.com/confirm_email
+        /// Sample request:
         /// 
         ///     POST: /api/auth/confirm_email?userId=4C2C522E-F785-4EB4-8ED7-260861453330&amp;code=your_code&amp;returnUrl=http://example.com/catalog
         /// </remarks>
@@ -403,9 +404,7 @@ namespace Portfol.io.Identity.Controllers
             var userId = await _userManager.GetUserIdAsync(user);
             var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-            var actionDesc = ControllerContext.ActionDescriptor;
-            var callbackUrl = Url.ActionLink(nameof(ConfirmEmail), $"{actionDesc.ControllerName}",
-                values: new { userId = userId, code = code, returnUrl = returnUrl }, fragment: "api/");
+            var callbackUrl = $"{UrlRaw}/confirm_email?userId={userId}&code={code}&returnUrl={returnUrl}";
             await _emailSender.SendEmailAsync(
                 email,
                 "Confirm your email",
@@ -422,8 +421,8 @@ namespace Portfol.io.Identity.Controllers
         /// 
         ///     PUT: /api/auth/refresh_token
         ///     {
-        ///         access_token = jwt token,
-        ///         refresh_token: your refresh token
+        ///         "access_token": "jwt token",
+        ///         "refresh_token": "your refresh token"
         ///     }
         /// </remarks>
         /// <returns>Returns <see cref="RefreshTokenResponse"/></returns>
@@ -442,7 +441,7 @@ namespace Portfol.io.Identity.Controllers
             var accessToken = model.AccessToken;
             var refreshToken = model.RefreshToken;
 
-            var principal = _tokenManager.GetPrincipalFromExpiredToken(accessToken);
+            var principal = await _tokenManager.GetPrincipalFromExpiredTokenAsync(accessToken)!;
 
             if (principal is null) return BadRequest(new Error { Message = "Invalid access token." });
 
@@ -455,8 +454,8 @@ namespace Portfol.io.Identity.Controllers
 
             var roles = await _userManager.GetRolesAsync(user);
 
-            var newAccessToken = _tokenManager.CreateAccessToken(user, roles.Last());
-            var newRefreshToken = _tokenManager.CreateRefreshToken();
+            var newAccessToken = await _tokenManager.CreateAccessTokenAsync(user, roles.Last());
+            var newRefreshToken = await _tokenManager.CreateRefreshTokenAsync();
 
             user.RefreshToken = newRefreshToken;
             user.RefreshTokenExpiryTime = new JwtOptions().RefreshTokenExpires;

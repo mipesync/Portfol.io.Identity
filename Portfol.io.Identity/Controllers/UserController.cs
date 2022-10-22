@@ -84,12 +84,12 @@ namespace Portfol.io.Identity.Controllers
         ///     GET /api/user/get_user_by_id?userId=33A5A12A-99A4-4770-80C4-C140F28B6E61
         /// </remarks>
         /// <param name="userId">User Id to find</param>
-        /// <returns>Returns <see cref="UserLookupDto"/></returns>
+        /// <returns>Returns <see cref="UserDto"/></returns>
         /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
 
         [HttpGet("get_user_by_id")]
-        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(UserLookupDto))]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(UserDto))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         [AllowAnonymous]
         public async Task<IActionResult> GetUserById(string userId)
@@ -99,7 +99,7 @@ namespace Portfol.io.Identity.Controllers
 
             if (user is null) return NotFound(new Error { Message = "User not found." });
 
-            return Ok(_mapper.Map<UserLookupDto>(user));
+            return Ok(_mapper.Map<UserDto>(user));
         }
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace Portfol.io.Identity.Controllers
         [AllowAnonymous]
         public IActionResult GetUsers()
         {
-            var users = _userManager.Users.ProjectTo<UserLookupDto>(_mapper.ConfigurationProvider).ToList();
+            var users = _userManager.Users.ProjectTo<UserDto>(_mapper.ConfigurationProvider).ToList();
 
             foreach(var user in users)
             {
@@ -162,9 +162,7 @@ namespace Portfol.io.Identity.Controllers
 
             var code = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-            var actionDesc = ControllerContext.ActionDescriptor;
-            var callbackUrl = Url.ActionLink(nameof(ConfirmChangeEmail), $"{actionDesc.ControllerName}",
-                values: new { userId = UserId, newEmail = newEmail, code = code });
+            var callbackUrl = $"{UrlRaw}/confirm_change_email?userId={UserId}&newEmail={newEmail}&code={code}";
 
             await _emailSender.SendEmailAsync(
                 user.Email,
@@ -177,7 +175,8 @@ namespace Portfol.io.Identity.Controllers
         /// <summary>
         /// Email change confirmation
         /// </summary>
-        /// <remarks>
+        /// <remarks> 
+        /// The page address must contain ".../confirm_change_email". Example: http://example.com/confirm_change_email 
         /// Sample request:
         /// 
         ///     POST: /api/user/confirm_change_email?newEmail=newUser@example.com&amp;code=your_code
@@ -298,9 +297,9 @@ namespace Portfol.io.Identity.Controllers
         /// 
         ///     PUT /api/user/update_user_details
         ///     {
-        ///         name: Ivanov Ivan Ivanovich,
-        ///         description: I'm Ivan,
-        ///         dateOfBirth: 0000-00-00
+        ///         "name": "Ivanov Ivan Ivanovich",
+        ///         "description": "I'm Ivan",
+        ///         "dateOfBirth": "0000-00-00"
         ///     }
         /// </remarks>
         /// <response code="400">If model is not valid. </response>
@@ -322,7 +321,12 @@ namespace Portfol.io.Identity.Controllers
 
             if (user is null) return NotFound(new Error { Message = "User not found." });
 
-            user.Name = model.Name;
+            var names = model.Name.Split(" ");
+
+            user.FullName = model.Name;
+            user.FirstName = names[1];
+            user.LastName = names[0];
+            user.MiddleName = names[2];
             user.Description = model.Description;
             user.DateOfBirth = model.DateOfBirth;
 

@@ -2,6 +2,6 @@
 {
     public class UsersViewModel
     {
-        public IEnumerable<UserLookupDto> Users { get; set; } = null!;
+        public IEnumerable<UserDto> Users { get; set; } = null!;
     }
 }

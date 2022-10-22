@@ -9,7 +9,7 @@ namespace Portfol.io.Identity.Common.TokenIssue
 {
     public class TokenManager : ITokenManager
     {
-        public JwtSecurityToken CreateAccessToken(IdentityUser user, string role)
+        public Task<JwtSecurityToken> CreateAccessTokenAsync(IdentityUser user, string role)
         {
             var claims = new List<Claim> { new Claim(ClaimTypes.Name, user.UserName),
                 new Claim(ClaimTypes.NameIdentifier, user.Id), new Claim(ClaimTypes.Role, role) };
@@ -21,18 +21,18 @@ namespace Portfol.io.Identity.Common.TokenIssue
                 expires: new JwtOptions().EXPIRES,
                 signingCredentials: new SigningCredentials(JwtOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256));
 
-            return jwt;
+            return Task.FromResult(jwt);
         }
 
-        public string CreateRefreshToken()
+        public Task<string> CreateRefreshTokenAsync()
         {
             var randomNumber = new byte[64];
             using var numberGenerator = RandomNumberGenerator.Create();
             numberGenerator.GetBytes(randomNumber);
-            return Convert.ToBase64String(randomNumber);
+            return Task.FromResult(Convert.ToBase64String(randomNumber));
         }
 
-        public ClaimsPrincipal? GetPrincipalFromExpiredToken(string? token)
+        public Task<ClaimsPrincipal>? GetPrincipalFromExpiredTokenAsync(string? token)
         {
             var tokenValidationParameters = new TokenValidationParameters
             {
@@ -48,7 +48,7 @@ namespace Portfol.io.Identity.Common.TokenIssue
             if (securityToken is not JwtSecurityToken jwtSecurityToken || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
                 throw new SecurityTokenException("Invalid token");
 
-            return principal;
+            return Task.FromResult(principal);
         }
     }
 }
