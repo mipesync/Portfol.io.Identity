@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -37,6 +38,22 @@ namespace Portfol.io.Identity.Controllers
             _emailSender = emailSender;
             _roleManager = roleManager;
             _tokenManager = tokenManager;
+        }
+
+        [HttpGet("oauth-vk")]
+        public async Task<IActionResult> OAuthVK()
+        {
+            var properties = new AuthenticationProperties()
+            {
+                RedirectUri = "/oauth-vk",
+                Items =
+                {
+                    { "LoginProvider", "VK" },
+                },
+                AllowRefresh = true
+            };
+
+            return Challenge(properties, "VK");
         }
 
         /// <summary>

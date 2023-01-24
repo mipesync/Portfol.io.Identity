@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -12,10 +15,11 @@ using Portfol.io.Identity.Data;
 using Portfol.io.Identity.Interfaces;
 using Portfol.io.Identity.Models;
 using System.Reflection;
+using System.Security.Claims;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("PostgreSQL");
 builder.Services.AddDbContext<AppIdentityContext>(options =>
 {
@@ -51,7 +55,35 @@ builder.Services.AddAuthentication(options =>
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = JwtOptions.GetSymmetricSecurityKey()
         };
+    })//TODO: Разобраться с реализацией и добавить остальные сервисы
+    .AddOAuth("VK", "OAuth-VK", config =>
+    {
+        config.ClientId = builder.Configuration["OAuth-VK:ClientId"];
+        config.ClientSecret = builder.Configuration["OAuth-VK:ClientSecret"];
+        config.ClaimsIssuer = "OAuth-VK";
+        config.CallbackPath = "/callback";
+        config.AuthorizationEndpoint = "https://oauth.vk.com/authorize";
+        config.TokenEndpoint = "https://oauth.vk.com/access_token";
+        config.Scope.Add("email");
+        config.ClaimActions.MapJsonKey(ClaimTypes.NameIdentifier, "user_id");
+        config.ClaimActions.MapJsonKey(ClaimTypes.Email, "email");
+        /*config.Events = new OAuthEvents
+        {
+            OnRemoteFailure = context =>
+            {
+
+                Console.WriteLine(context.Failure);
+                return Task.CompletedTask;
+            },
+            OnCreatingTicket = context =>
+            {
+                context.RunClaimActions(context.TokenResponse.Response!.RootElement);
+                return Task.CompletedTask;
+            }
+        };*/
     });
+
+
 // NOTE: Корсы потом норм сделать
 builder.Services.AddCors(options => options.AddPolicy("AllowAllOrigins", builder =>
 {

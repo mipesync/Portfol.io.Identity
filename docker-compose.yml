@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  portfol.io.identity:
+    image: ${DOCKER_REGISTRY-}portfolioidentity
+    build:
+      context: .
+      dockerfile: Portfol.io.Identity/Dockerfile
