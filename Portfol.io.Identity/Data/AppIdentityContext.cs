@@ -19,15 +19,15 @@ public class AppIdentityContext : IdentityDbContext<AppUser>
         builder.Entity<IdentityRole>().HasData(
             new IdentityRole<string>
             {
-                Name = "employee",
-                NormalizedName = "EMPLOYEE",
+                Name = "author",
+                NormalizedName = "AUTHOR",
                 Id = Guid.NewGuid().ToString(),
                 ConcurrencyStamp = Guid.NewGuid().ToString(),
             },
             new IdentityRole<string>
             {
-                Name = "employer",
-                NormalizedName = "EMPLOYER",
+                Name = "user",
+                NormalizedName = "USER",
                 Id = Guid.NewGuid().ToString(),
                 ConcurrencyStamp = Guid.NewGuid().ToString(),
             },

@@ -11,8 +11,6 @@ using Portfol.io.Identity.Models;
 using Portfol.io.Identity.ViewModels;
 using Portfol.io.Identity.ViewModels.ResponseModels;
 using Swashbuckle.AspNetCore.Annotations;
-using System.Net;
-using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
 using IO = System.IO;
@@ -64,10 +62,10 @@ namespace Portfol.io.Identity.Controllers
         [AllowAnonymous]
         public IActionResult GetRolesList()
         {
-            var roles = _roleManager.Roles.Where(o => new List<string> { "employee", "employer" }.Contains(o.Name))
+            var roles = _roleManager.Roles.Where(o => new List<string> { "author", "user" }.Contains(o.Name))
                 .ProjectTo<RoleLookupDto>(_mapper.ConfigurationProvider).ToList();
 
-            if (roles.Count() == 0) return NotFound(new Error { Message = "Roles not found." });
+            if (roles.Count() == 0) return NotFound(new Error { Message = "Роли не найдены" });
 
             return Ok(new RoleViewModel
             {
@@ -97,7 +95,7 @@ namespace Portfol.io.Identity.Controllers
             var user = await _userManager.FindByIdAsync(userId);
             user.ProfileImagePath = UrlRaw + user.ProfileImagePath;
 
-            if (user is null) return NotFound(new Error { Message = "User not found." });
+            if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
             return Ok(_mapper.Map<UserDto>(user));
         }
@@ -127,7 +125,7 @@ namespace Portfol.io.Identity.Controllers
                 user.ProfileImagePath = UrlRaw + user.ProfileImagePath;
             }
 
-            if (users.Count == 0) return NotFound(new Error { Message = "Users not found." });
+            if (users.Count == 0) return NotFound(new Error { Message = "Пользователи не найдены" });
 
             return Ok(new UsersViewModel
             {
@@ -154,20 +152,20 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> ChangeEmail(string newEmail)
         {
-            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
             var user = await _userManager.FindByIdAsync(UserId);
 
-            if (user is null) return NotFound(new Error { Message = "User is found." });
+            if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
             var code = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-            var callbackUrl = $"{UrlRaw}/confirm_change_email?userId={UserId}&newEmail={newEmail}&code={code}";
+            var callbackUrl = $"{UrlRaw}/confirmEmailChange?userId={UserId}&newEmail={newEmail}&code={code}";
 
             await _emailSender.SendEmailAsync(
                 user.Email,
-                "Change email",
-                $"Please change your email by <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>clicking here</a>.");
+                "Смена email",
+                $"Для смены email <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>нажмите сюда</a>.");
 
             return Ok();
         }
@@ -176,7 +174,7 @@ namespace Portfol.io.Identity.Controllers
         /// Email change confirmation
         /// </summary>
         /// <remarks> 
-        /// The page address must contain ".../confirm_change_email". Example: http://example.com/confirm_change_email 
+        /// The page address must contain ".../confirmEmailChange". Example: http://example.com/confirmEmailChange
         /// Sample request:
         /// 
         ///     POST: /api/user/confirm_change_email?newEmail=newUser@example.com&amp;code=your_code
@@ -197,7 +195,7 @@ namespace Portfol.io.Identity.Controllers
         {
             var user = await _userManager.FindByIdAsync(UserId);
 
-            if (user is null) return NotFound(new Error { Message = "User not found." });
+            if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
             code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
 
@@ -235,17 +233,17 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> ChangePhone(string newPhoneNumber)
         {
-            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
             var user = await _userManager.FindByIdAsync(UserId);
 
-            if (user is null) return NotFound(new Error { Message = "User not found." });
+            if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
             var code = await _userManager.GenerateChangePhoneNumberTokenAsync(user, newPhoneNumber);
 
             //TODO: Реализовать отправку кода на номер телефона
 
-            return Ok(new {message = $"Your confirm code: {code}"});
+            return Ok(new {message = $"Ваш код подтверждения: {code}"});
         }
 
         /// <summary>
@@ -272,7 +270,7 @@ namespace Portfol.io.Identity.Controllers
         { 
             var user = await _userManager.FindByIdAsync(UserId);
 
-            if (user is null) return NotFound(new Error { Message = "User not found." });
+            if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
             var result = await _userManager.ChangePhoneNumberAsync(user, newPhoneNumber, code);
 
@@ -315,11 +313,11 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> UpdateUserDetails([FromBody] UpdateUserDetailsViewModel model)
         {
-            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
             var user = await _userManager.FindByIdAsync(UserId);
 
-            if (user is null) return NotFound(new Error { Message = "User not found." });
+            if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
             var names = model.Name.Split(" ");
 
@@ -369,11 +367,11 @@ namespace Portfol.io.Identity.Controllers
         {
             var user = await _userManager.FindByIdAsync(UserId);
 
-            if (user is null) return NotFound(new Error { Message = "User not found." });
+            if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
             if (user.ProfileImagePath != "/ProfileImages/default.png") IO.File.Delete(_environment.WebRootPath + user.ProfileImagePath);
 
-            if (file is default(IFormFile)) return BadRequest(new {message = "File is empty."});
+            if (file is default(IFormFile)) return BadRequest(new {message = "Файл пустой"});
 
             _fileUploader.File = file;
             _fileUploader.AbsolutePath = $"/ProfileImages/{UserId}";
@@ -406,7 +404,7 @@ namespace Portfol.io.Identity.Controllers
         {
             var user = await _userManager.FindByIdAsync(UserId);
 
-            if (user is null) return NotFound(new Error { Message = "User not found." });
+            if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
             var defaultImagePath = "/ProfileImages/default.png";
 

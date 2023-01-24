@@ -86,17 +86,17 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> Login([FromBody] LoginViewModel model)
         {
-            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
             var user = await _userManager.FindByNameAsync(model.Username);
 
             if (user is null || user.UserName != model.Username)
             {
-                return NotFound(new Error { Message = "User not found." });
+                return NotFound(new Error { Message = "Пользователь не найден" });
             }
             if (!user.EmailConfirmed)
             {
                 _logger.LogWarning("Email not confimed.");
-                return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Email not confimed." });
+                return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Email не подтверждён" });
             }
 
             var result = await _signInManager.PasswordSignInAsync(user, model.Password, model.RememberMe, false);
@@ -136,7 +136,7 @@ namespace Portfol.io.Identity.Controllers
                 user.AccessFailedCount = 0;
                 await _userManager.UpdateAsync(user);
 
-                return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "User account locked out." });
+                return StatusCode((int)HttpStatusCode.Forbidden, error = new Error { Message = "Аккаунт заблокирован" });
             }
             else
             {
@@ -150,17 +150,9 @@ namespace Portfol.io.Identity.Controllers
 
                 await _userManager.UpdateAsync(user);
 
-                return BadRequest(new Error { Message = "Invalid login attempt." });
+                return BadRequest(new Error { Message = "Неудачная попытка входа" });
             }
         }
-
-        /*[HttpPost]
-        public async Task Logout()
-        {
-            //TODO: Разобраться
-            await _signInManager.SignOutAsync();
-            _logger.LogInformation("User logged out.");
-        }*/
 
         /// <summary>
         /// Registers a user
@@ -195,17 +187,17 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
         {
-            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
             var user = new AppUser { UserName = model.Username, Email = model.Email, DateOfCreation = DateTime.UtcNow };
 
             var role = await _roleManager.FindByIdAsync(model.RoleId);
 
-            if (role is null) return NotFound(new Error { Message = "Role not found."});
+            if (role is null) return NotFound(new Error { Message = "Роль не найдена"});
 
             var getUser = await _userManager.FindByEmailAsync(model.Email);
 
-            if (getUser is not null) return BadRequest(new Error { Message = $"A user with this email already exists." });
+            if (getUser is not null) return BadRequest(new Error { Message = "Пользователь с таким email уже существует" });
 
             var result = await _userManager.CreateAsync(user, model.Password);
 
@@ -218,10 +210,10 @@ namespace Portfol.io.Identity.Controllers
                 var userId = await _userManager.GetUserIdAsync(user);
                 var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                 code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-                var callbackUrl = $"{UrlRaw}/confirm_email?userId={userId}&code={code}&returnUrl={model.ReturnUrl}";
+                var callbackUrl = $"{UrlRaw}/confirmEmail?userId={userId}&code={code}&returnUrl={model.ReturnUrl}";
 
-                await _emailSender.SendEmailAsync(model.Email, "Confirm your email",
-                    $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>clicking here</a>.");
+                await _emailSender.SendEmailAsync(model.Email, "Подтвердите свою почту",
+                    $"Для подтверждения аккаунта <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>нажмите сюда</a>.");
 
                 if (!_userManager.Options.SignIn.RequireConfirmedAccount)
                 {
@@ -263,24 +255,24 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
         public async Task<IActionResult> ForgotPassword(string email)
         {
-            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
             var user = await _userManager.FindByEmailAsync(email);
 
             if (user == null || !(await _userManager.IsEmailConfirmedAsync(user)))
             {
-                return BadRequest(new Error { Message = "The user does not exist or is not confirmed." });
+                return BadRequest(new Error { Message = "Пользователь не существует или его почта не подтверждена" });
             }
 
             var code = await _userManager.GeneratePasswordResetTokenAsync(user);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
             var actionDesc = ControllerContext.ActionDescriptor;
-            var callbackUrl = $"{UrlRaw}/reset_password?email={email}&code={code}";
+            var callbackUrl = $"{UrlRaw}/resetPassword?email={email}&code={code}";
 
             await _emailSender.SendEmailAsync(
                 email,
-                "Reset Password",
-                $"Please reset your password by <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>clicking here</a>.");
+                "Сбросить пароль",
+                $"Для сброса пароля <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>нажмите сюда</a>.");
 
             return Ok();
         }
@@ -290,7 +282,7 @@ namespace Portfol.io.Identity.Controllers
         /// </summary>
         /// <remarks>
         /// Accepts the code that was sent to the mail. 
-        /// The page address must contain ".../reset_password". Example: http://example.com/reset_password 
+        /// The page address must contain ".../resetPassword". Example: http://example.com/resetPassword
         /// Sample request:
         /// 
         ///     POST: /api/auth/reset_password
@@ -314,13 +306,13 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordViewModel model)
         {
-            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
             var user = await _userManager.FindByEmailAsync(model.Email);
 
             if (user == null)
             {
-                return NotFound(new Error { Message = "User not found." });
+                return NotFound(new Error { Message = "Пользователь не найден" });
             }
 
             var encodeCode = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(model.Code));
@@ -343,7 +335,7 @@ namespace Portfol.io.Identity.Controllers
         /// Email confirmation.
         /// </summary>
         /// <remarks>
-        /// The page address must contain ".../confirm_email". Example: http://example.com/confirm_email
+        /// The page address must contain ".../confirmEmail". Example: http://example.com/confirmEmail
         /// Sample request:
         /// 
         ///     POST: /api/auth/confirm_email?userId=4C2C522E-F785-4EB4-8ED7-260861453330&amp;code=your_code&amp;returnUrl=http://example.com/catalog
@@ -370,7 +362,7 @@ namespace Portfol.io.Identity.Controllers
 
             if (user == null)
             {
-                return NotFound(new Error { Message = "User not found." });
+                return NotFound(new Error { Message = "Пользователь не найден" });
             }
 
             code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
@@ -381,11 +373,11 @@ namespace Portfol.io.Identity.Controllers
             {
                 return Ok(new ConfirmEmailResponse 
                 {
-                    message = "Email has been confirmed",
+                    message = "Почта была подтверждена",
                     returnUrl = returnUrl 
                 });
             }
-            else return BadRequest(new Error { Message = "Error confirming email" });
+            else return BadRequest(new Error { Message = "Ошибка подтверждения почты" });
         }
 
         /// <summary>
@@ -409,23 +401,21 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> ResendEmailConfirmation(string email, string? returnUrl)
         {
-            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
             var user = await _userManager.FindByEmailAsync(email);
 
             if (user == null)
             {
-                return NotFound(new Error { Message = "User not found." });
+                return NotFound(new Error { Message = "Пользователь не найден" });
             }
 
             var userId = await _userManager.GetUserIdAsync(user);
             var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-            var callbackUrl = $"{UrlRaw}/confirm_email?userId={userId}&code={code}&returnUrl={returnUrl}";
-            await _emailSender.SendEmailAsync(
-                email,
-                "Confirm your email",
-                $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>clicking here</a>.");
+            var callbackUrl = $"{UrlRaw}/confirmEmail?userId={userId}&code={code}&returnUrl={returnUrl}";
+            await _emailSender.SendEmailAsync(email, "Подтвердите свою почту",
+                $"Для подтверждения аккаунта <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>нажмите сюда</a>.");
 
             return Ok();
         }
@@ -447,13 +437,13 @@ namespace Portfol.io.Identity.Controllers
         /// <response code="400">if invalid access token. </response>
         /// <response code="400">if invalid access token or refresh token. </response>
         /// <response code="200">Success</response>
-
+        //TODO: Изменить логику
         [HttpPut("refresh_token")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(RefreshTokenResponse))]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenViewModel model)
         {
-            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Model is not valid." });
+            if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
             var accessToken = model.AccessToken;
             var refreshToken = model.RefreshToken;
@@ -510,7 +500,7 @@ namespace Portfol.io.Identity.Controllers
         {
             var user = await _userManager.FindByIdAsync(userId);
 
-            if (user is null) return NotFound(new Error { Message = "User not found." });
+            if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
             user.RefreshToken = null;
             user.RefreshTokenExpiryTime = default(DateTime);
