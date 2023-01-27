@@ -12,6 +12,7 @@ using Portfol.io.Identity.ViewModels.ResponseModels.AuthResponseModels;
 using Swashbuckle.AspNetCore.Annotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
 
@@ -105,17 +106,17 @@ namespace Portfol.io.Identity.Controllers
             {
                 _logger.LogInformation("User logged in.");
 
-                var accessToken = await _tokenManager.CreateAccessTokenAsync(user, _userManager.GetRolesAsync(user).Result.FirstOrDefault()!);
-                var refreshToken = string.Empty;
+                JwtSecurityToken accessToken = await _tokenManager.CreateAccessTokenAsync(user, _userManager.GetRolesAsync(user).Result.FirstOrDefault()!);
+                JwtSecurityToken? refreshToken = null;
 
                 user.LockoutEnd = null;
                 user.LockoutEnabled = false;
 
                 if (model.RememberMe)
                 {
-                    refreshToken = await _tokenManager.CreateRefreshTokenAsync();
+                    refreshToken = await _tokenManager.CreateRefreshTokenAsync(user.Id.ToString());
 
-                    user.RefreshToken = refreshToken;
+                    user.RefreshToken = new JwtSecurityTokenHandler().WriteToken(refreshToken);
                     user.RefreshTokenExpiryTime = new JwtOptions().RefreshTokenExpires;
                 }
 
@@ -125,7 +126,8 @@ namespace Portfol.io.Identity.Controllers
                 {
                     access_token = new JwtSecurityTokenHandler().WriteToken(accessToken),
                     expires = accessToken.ValidTo,
-                    refresh_token = refreshToken,
+                    refresh_token = refreshToken is null ? null : new JwtSecurityTokenHandler().WriteToken(refreshToken),
+                    refresh_token_expires = refreshToken is null ? null : refreshToken!.ValidTo,
                     returnUrl = model.ReturnUrl
                 });
             }
@@ -136,7 +138,7 @@ namespace Portfol.io.Identity.Controllers
                 user.AccessFailedCount = 0;
                 await _userManager.UpdateAsync(user);
 
-                return StatusCode((int)HttpStatusCode.Forbidden, error = new Error { Message = "Аккаунт заблокирован" });
+                return StatusCode((int)HttpStatusCode.Forbidden, new Error { Message = "Аккаунт заблокирован" });
             }
             else
             {
@@ -426,45 +428,46 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sample request:
         /// 
-        ///     PUT: /api/auth/refresh_token
-        ///     {
-        ///         "access_token": "jwt token",
-        ///         "refresh_token": "your refresh token"
-        ///     }
+        ///     PUT: /api/auth/refresh_token?token=your refresh token
         /// </remarks>
         /// <returns>Returns <see cref="RefreshTokenResponse"/></returns>
-        /// <response code="400">if an error occurred while email confirmation. </response>
-        /// <response code="400">if invalid access token. </response>
-        /// <response code="400">if invalid access token or refresh token. </response>
+        /// <response code="400">Некорректные входные данные</response>
+        /// <response code="400">Invalid token</response>
+        /// <response code="400">Wrong refresh token</response>
+        /// <response code="404">If the user is not found</response>
+        /// <response code="404">If the role is not found</response>
         /// <response code="200">Success</response>
-        //TODO: Изменить логику
         [HttpPut("refresh_token")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(RefreshTokenResponse))]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenViewModel model)
+        [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
+        public async Task<IActionResult> RefreshToken(string refresh)
         {
             if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
-            var accessToken = model.AccessToken;
-            var refreshToken = model.RefreshToken;
+            var principal = await _tokenManager.GetPrincipalFromExpiredTokenAsync(refresh)!;
 
-            var principal = await _tokenManager.GetPrincipalFromExpiredTokenAsync(accessToken)!;
+            if (principal is null) return BadRequest(new Error { Message = "Недействительный токен" });
 
-            if (principal is null) return BadRequest(new Error { Message = "Invalid access token." });
+            var userId = principal.Claims.First(u => u.Type == ClaimTypes.NameIdentifier).Value;
 
-            var user = await _userManager.FindByNameAsync(principal.Identity!.Name);
+            var user = await _userManager.FindByIdAsync(userId);
 
-            if  (user is null || user.RefreshToken != refreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
-            {
-                return BadRequest(new Error { Message = "Invalid access token or refresh token." });
-            }
+            if (user is null)
+                return NotFound(new Error { Message = "Пользователь не найден" });
+
+            if (user.RefreshToken != refresh)
+                return BadRequest(new Error { Message = "Неверный токен обновления" });
+
 
             var roles = await _userManager.GetRolesAsync(user);
 
-            var newAccessToken = await _tokenManager.CreateAccessTokenAsync(user, roles.Last());
-            var newRefreshToken = await _tokenManager.CreateRefreshTokenAsync();
+            if (roles is null) return NotFound(new Error { Message = "Роль не найдена"});
 
-            user.RefreshToken = newRefreshToken;
+            var newAccessToken = await _tokenManager.CreateAccessTokenAsync(user, roles.First());
+            var newRefreshToken = await _tokenManager.CreateRefreshTokenAsync(userId);
+
+            user.RefreshToken = new JwtSecurityTokenHandler().WriteToken(newRefreshToken);
             user.RefreshTokenExpiryTime = new JwtOptions().RefreshTokenExpires;
 
             await _userManager.UpdateAsync(user);
@@ -473,7 +476,8 @@ namespace Portfol.io.Identity.Controllers
             {
                 access_token = new JwtSecurityTokenHandler().WriteToken(newAccessToken),
                 expire = newAccessToken.ValidTo,
-                refresh_token = newRefreshToken
+                refresh_token = new JwtSecurityTokenHandler().WriteToken(newRefreshToken),
+                refresh_token_expire = newRefreshToken.ValidTo
             });
         }
 

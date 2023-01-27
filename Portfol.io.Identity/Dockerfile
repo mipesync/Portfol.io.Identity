@@ -7,8 +7,8 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["Portfol.io.Identity.csproj", ""]
-RUN dotnet restore "Portfol.io.Identity.csproj"
+COPY ["Portfol.io.Identity/Portfol.io.Identity.csproj", "Portfol.io.Identity/"]
+RUN dotnet restore "Portfol.io.Identity/Portfol.io.Identity.csproj"
 COPY . .
 WORKDIR "/src/Portfol.io.Identity"
 RUN dotnet build "Portfol.io.Identity.csproj" -c Release -o /app/build

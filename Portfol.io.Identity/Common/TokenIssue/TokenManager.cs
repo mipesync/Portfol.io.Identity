@@ -3,7 +3,6 @@ using Microsoft.IdentityModel.Tokens;
 using Portfol.io.Identity.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 
 namespace Portfol.io.Identity.Common.TokenIssue
 {
@@ -24,12 +23,18 @@ namespace Portfol.io.Identity.Common.TokenIssue
             return Task.FromResult(jwt);
         }
 
-        public Task<string> CreateRefreshTokenAsync()
+        public Task<JwtSecurityToken> CreateRefreshTokenAsync(string userId)
         {
-            var randomNumber = new byte[64];
-            using var numberGenerator = RandomNumberGenerator.Create();
-            numberGenerator.GetBytes(randomNumber);
-            return Task.FromResult(Convert.ToBase64String(randomNumber));
+            var claims = new List<Claim> { new Claim(ClaimTypes.NameIdentifier, userId) };
+
+            var jwt = new JwtSecurityToken(
+                issuer: JwtOptions.ISSUER,
+                audience: JwtOptions.AUDIENCE,
+                claims: claims,
+                expires: new JwtOptions().RefreshTokenExpires,
+                signingCredentials: new SigningCredentials(JwtOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256));
+
+            return Task.FromResult(jwt);
         }
 
         public Task<ClaimsPrincipal>? GetPrincipalFromExpiredTokenAsync(string? token)
