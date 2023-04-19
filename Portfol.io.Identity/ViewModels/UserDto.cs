@@ -9,6 +9,9 @@ namespace Portfol.io.Identity.ViewModels
         public string Id { get; set; } = null!;
         public string UserName { get; set; } = null!;
         public string FullName { get; set; } = null!;
+        public string FirstName { get; set; } = null!;
+        public string LastName { get; set; } = null!;
+        public string MiddleName { get; set; } = null!;
         public string Email { get; set; } = null!;
         public string Phone { get; set; } = null!;
         public string? Description { get; set; }
@@ -22,6 +25,9 @@ namespace Portfol.io.Identity.ViewModels
                 .ForMember(lookUp => lookUp.Id, opt => opt.MapFrom(user => user.Id))
                 .ForMember(lookUp => lookUp.UserName, opt => opt.MapFrom(user => user.UserName))
                 .ForMember(lookUp => lookUp.FullName, opt => opt.MapFrom(user => user.FullName))
+                .ForMember(lookUp => lookUp.FirstName, opt => opt.MapFrom(user => user.FirstName))
+                .ForMember(lookUp => lookUp.LastName, opt => opt.MapFrom(user => user.LastName))
+                .ForMember(lookUp => lookUp.MiddleName, opt => opt.MapFrom(user => user.MiddleName))
                 .ForMember(lookUp => lookUp.Email, opt => opt.MapFrom(user => user.Email))
                 .ForMember(lookUp => lookUp.Phone, opt => opt.MapFrom(user => user.PhoneNumber))
                 .ForMember(lookUp => lookUp.Description, opt => opt.MapFrom(user => user.Description))

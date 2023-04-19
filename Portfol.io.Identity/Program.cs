@@ -14,6 +14,7 @@ using Portfol.io.Identity.Common.TokenIssue;
 using Portfol.io.Identity.Data;
 using Portfol.io.Identity.Interfaces;
 using Portfol.io.Identity.Models;
+using Portfol.io.Identity.Repositories;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
@@ -128,6 +129,8 @@ builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddTransient<ITokenManager, TokenManager>();
 builder.Services.AddAutoMapper(u => u.AddProfile(new AssemblyMappingProfile(Assembly.GetExecutingAssembly())));
 builder.Services.AddTransient<IFileUploader, FileUploader>();
+
+builder.Services.AddTransient<IAuthRepository, AuthRepository>();
 
 var app = builder.Build();
 

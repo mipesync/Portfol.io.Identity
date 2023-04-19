@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Portfol.io.Identity.Common.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace Portfol.io.Identity.ViewModels
 {
@@ -17,7 +18,11 @@ namespace Portfol.io.Identity.ViewModels
         public string Password { get; set; } = null!;
 
         [Required]
-        public string RoleId { get; set; } = null!;
+        public Roles Role { get; set; }
+
+        [Required]
+        public string HostUrl { get; set; } = null!;
+
         public string? ReturnUrl { get; set; }
     }
 }

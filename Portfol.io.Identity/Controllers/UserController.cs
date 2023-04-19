@@ -10,6 +10,7 @@ using Portfol.io.Identity.Interfaces;
 using Portfol.io.Identity.Models;
 using Portfol.io.Identity.ViewModels;
 using Portfol.io.Identity.ViewModels.ResponseModels;
+using Portfol.io.Identity.ViewModels.ResponseModels.UserResponseModel;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -24,7 +25,6 @@ namespace Portfol.io.Identity.Controllers
     public class UserController : BaseController
     {
         private readonly UserManager<AppUser> _userManager;
-        private readonly SignInManager<AppUser> _signInManager;
         private readonly ILogger<AuthController> _logger;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IMapper _mapper;
@@ -32,11 +32,10 @@ namespace Portfol.io.Identity.Controllers
         private readonly IFileUploader _fileUploader;
         private readonly IWebHostEnvironment _environment;
 
-        public UserController(RoleManager<IdentityRole> roleManager, UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, ILogger<AuthController> logger, IMapper mapper, IEmailSender emailSender, IFileUploader fileUploader, IWebHostEnvironment environment)
+        public UserController(RoleManager<IdentityRole> roleManager, UserManager<AppUser> userManager, ILogger<AuthController> logger, IMapper mapper, IEmailSender emailSender, IFileUploader fileUploader, IWebHostEnvironment environment)
         {
             _roleManager = roleManager;
             _userManager = userManager;
-            _signInManager = signInManager;
             _logger = logger;
             _mapper = mapper;
             _emailSender = emailSender;
@@ -50,13 +49,13 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sample request:
         /// 
-        ///     GET: /api/user/get_roles
+        ///     GET: /api/user/roles
         /// </remarks>
         /// <returns>Returns <see cref="RoleViewModel"/></returns>
         /// <response code="404">If roles not found. </response>
         /// <response code="200">Success</response>
 
-        [HttpGet("get_roles")]
+        [HttpGet("roles")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(RoleViewModel))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         [AllowAnonymous]
@@ -79,14 +78,14 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sample request:
         /// 
-        ///     GET /api/user/get_user_by_id?userId=33A5A12A-99A4-4770-80C4-C140F28B6E61
+        ///     GET /api/user/details/33A5A12A-99A4-4770-80C4-C140F28B6E61
         /// </remarks>
         /// <param name="userId">User Id to find</param>
         /// <returns>Returns <see cref="UserDto"/></returns>
         /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
 
-        [HttpGet("get_user_by_id")]
+        [HttpGet("details")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(UserDto))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         [AllowAnonymous]
@@ -101,18 +100,45 @@ namespace Portfol.io.Identity.Controllers
         }
 
         /// <summary>
+        /// Get short user details
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        /// 
+        ///     GET /api/user/details/short/33A5A12A-99A4-4770-80C4-C140F28B6E61
+        /// </remarks>
+        /// <param name="userId">User Id to find</param>
+        /// <returns>Returns <see cref="UserDto"/></returns>
+        /// <response code="404">If the user is not found. </response>
+        /// <response code="200">Success</response>
+
+        [HttpGet("details/short")]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(UserShortDetailsResponse))]
+        [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetShortDetails(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            user.ProfileImagePath = UrlRaw + user.ProfileImagePath;
+
+            if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
+
+            return Ok(_mapper.Map<UserShortDetailsResponse>(user));
+        }
+
+        /// <summary>
         /// Get a list of user
         /// </summary>
         /// <remarks>
         /// Sample request:
         /// 
-        ///     GET /api/user/get_users
+        ///     GET /api/user/all
         /// </remarks>
         /// <returns>Returns <see cref="UsersViewModel"/></returns>
         /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
 
-        [HttpGet("get_users")]
+        [HttpGet("all")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(UsersViewModel))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         [AllowAnonymous]
@@ -293,7 +319,7 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// To update user data: name, description, date of birth. Sample request:
         /// 
-        ///     PUT /api/user/update_user_details
+        ///     PUT /api/user/details
         ///     {
         ///         "name": "Ivanov Ivan Ivanovich",
         ///         "description": "I'm Ivan",
@@ -306,7 +332,7 @@ namespace Portfol.io.Identity.Controllers
         /// <response code="204">If none of the conditions are met.</response>
         /// <response code="200">Success</response>
 
-        [HttpPut("update_user_details")]
+        [HttpPut("details")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
@@ -349,7 +375,7 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sample request:
         /// 
-        ///     PUT: /api/user/update_profile_image
+        ///     PUT: /api/user/profile_image
         ///     Form object: file=file_object; type: image/jpeg
         /// </remarks>
         /// <param name="file">Image file. Support extensions: jpeg, png, jpg</param>
@@ -358,7 +384,7 @@ namespace Portfol.io.Identity.Controllers
         /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
 
-        [HttpPut("update_profile_image")]
+        [HttpPut("profile_image")]
         [ValidateFileExtension("jpeg, png, jpg")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
@@ -369,7 +395,7 @@ namespace Portfol.io.Identity.Controllers
 
             if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
-            if (user.ProfileImagePath != "/ProfileImages/default.png") IO.File.Delete(_environment.WebRootPath + user.ProfileImagePath);
+            if (user.ProfileImagePath != "") IO.File.Delete(_environment.WebRootPath + user.ProfileImagePath);
 
             if (file is default(IFormFile)) return BadRequest(new {message = "Файл пустой"});
 
@@ -392,12 +418,12 @@ namespace Portfol.io.Identity.Controllers
         /// <remarks>
         /// Sets the default profile image. Sample request:
         /// 
-        ///     DELETE: /api/user/remove_profile_image
+        ///     DELETE: /api/user/profile_image
         /// </remarks>
         /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
 
-        [HttpDelete("remove_profile_image")]
+        [HttpDelete("profile_image")]
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         public async Task<IActionResult> RemoveProfileImage()
@@ -406,11 +432,7 @@ namespace Portfol.io.Identity.Controllers
 
             if (user is null) return NotFound(new Error { Message = "Пользователь не найден" });
 
-            var defaultImagePath = "/ProfileImages/default.png";
-
-            if (user.ProfileImagePath != defaultImagePath) IO.File.Delete(_environment.WebRootPath + user.ProfileImagePath);
-
-            user.ProfileImagePath = defaultImagePath;
+            if (user.ProfileImagePath != "") IO.File.Delete(_environment.WebRootPath + user.ProfileImagePath);
 
             await _userManager.UpdateAsync(user);
 
