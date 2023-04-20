@@ -84,7 +84,6 @@ builder.Services.AddAuthentication(options =>
         };*/
     });
 
-
 // NOTE: Корсы потом норм сделать
 builder.Services.AddCors(options => options.AddPolicy("AllowAllOrigins", builder =>
 {

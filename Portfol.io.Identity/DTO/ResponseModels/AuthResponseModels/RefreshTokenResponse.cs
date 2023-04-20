@@ -1,4 +1,4 @@
-﻿namespace Portfol.io.Identity.ViewModels.ResponseModels.AuthResponseModels
+﻿namespace Portfol.io.Identity.DTO.ResponseModels.AuthResponseModels
 {
     public class RefreshTokenResponse
     {

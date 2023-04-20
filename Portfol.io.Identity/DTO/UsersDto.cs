@@ -1,6 +1,6 @@
-﻿namespace Portfol.io.Identity.ViewModels
+﻿namespace Portfol.io.Identity.DTO
 {
-    public class UsersViewModel
+    public class UsersDto
     {
         public IEnumerable<UserDto> Users { get; set; } = null!;
     }

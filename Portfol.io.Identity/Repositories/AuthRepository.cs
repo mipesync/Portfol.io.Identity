@@ -4,10 +4,10 @@ using Microsoft.AspNetCore.WebUtilities;
 using Portfol.io.Identity.Common.Exceptions;
 using Portfol.io.Identity.Common.TokenIssue;
 using Portfol.io.Identity.Controllers;
+using Portfol.io.Identity.DTO;
+using Portfol.io.Identity.DTO.ResponseModels.AuthResponseModels;
 using Portfol.io.Identity.Interfaces;
 using Portfol.io.Identity.Models;
-using Portfol.io.Identity.ViewModels;
-using Portfol.io.Identity.ViewModels.ResponseModels.AuthResponseModels;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -84,7 +84,7 @@ namespace Portfol.io.Identity.Repositories
                 $"Для сброса пароля <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>нажмите сюда</a>.");
         }
 
-        public async Task<LoginResponse> Login(LoginViewModel model)
+        public async Task<LoginResponse> Login(LoginDto model)
         {
             var user = await _userManager.FindByNameAsync(model.Username);
 
@@ -123,14 +123,15 @@ namespace Portfol.io.Identity.Repositories
 
                 return new LoginResponse
                 {
+                    userId = user.Id,
                     access_token = new JwtSecurityTokenHandler().WriteToken(accessToken),
-                    expires = accessToken.ValidTo,
+                    expires = DateToMilleseconds(accessToken.ValidTo),
                     refresh_token = refreshToken is null 
                         ? null 
                         : new JwtSecurityTokenHandler().WriteToken(refreshToken),
                     refresh_token_expires = refreshToken is null 
                         ? null 
-                        : refreshToken!.ValidTo,
+                        : DateToMilleseconds(refreshToken!.ValidTo),
                     returnUrl = model.ReturnUrl
                 };
             }
@@ -159,7 +160,7 @@ namespace Portfol.io.Identity.Repositories
             }
         }
 
-        public async Task<RegisterResponse> Register(RegisterViewModel model)
+        public async Task<RegisterResponse> Register(RegisterDto model)
         {
             var user = new AppUser { 
                 UserName = model.Username, 
@@ -233,7 +234,7 @@ namespace Portfol.io.Identity.Repositories
                 $"Для подтверждения аккаунта <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>нажмите сюда</a>.");
         }
 
-        public async Task ResetPassword(ResetPasswordViewModel model)
+        public async Task ResetPassword(ResetPasswordDto model)
         {
             var user = await _userManager.FindByEmailAsync(model.Email);
 
@@ -314,6 +315,11 @@ namespace Portfol.io.Identity.Repositories
             }
 
             return;
+        }
+
+        private long DateToMilleseconds(DateTime date)
+        {
+            return (long)(date - new DateTime(1970, 1, 1)).TotalMilliseconds;
         }
     }
 }

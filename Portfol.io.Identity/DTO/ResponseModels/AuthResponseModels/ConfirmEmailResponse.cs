@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Portfol.io.Identity.ViewModels.ResponseModels.AuthResponseModels
+namespace Portfol.io.Identity.DTO.ResponseModels.AuthResponseModels
 {
     public class ConfirmEmailResponse
     {

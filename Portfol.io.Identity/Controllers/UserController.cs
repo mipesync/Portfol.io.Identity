@@ -6,11 +6,11 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Portfol.io.Identity.Common.Attributes;
+using Portfol.io.Identity.DTO;
+using Portfol.io.Identity.DTO.ResponseModels;
+using Portfol.io.Identity.DTO.ResponseModels.UserResponseModel;
 using Portfol.io.Identity.Interfaces;
 using Portfol.io.Identity.Models;
-using Portfol.io.Identity.ViewModels;
-using Portfol.io.Identity.ViewModels.ResponseModels;
-using Portfol.io.Identity.ViewModels.ResponseModels.UserResponseModel;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -41,35 +41,6 @@ namespace Portfol.io.Identity.Controllers
             _emailSender = emailSender;
             _fileUploader = fileUploader;
             _environment = environment;
-        }
-
-        /// <summary>
-        /// Get a list of available roles.
-        /// </summary>
-        /// <remarks>
-        /// Sample request:
-        /// 
-        ///     GET: /api/user/roles
-        /// </remarks>
-        /// <returns>Returns <see cref="RoleViewModel"/></returns>
-        /// <response code="404">If roles not found. </response>
-        /// <response code="200">Success</response>
-
-        [HttpGet("roles")]
-        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(RoleViewModel))]
-        [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
-        [AllowAnonymous]
-        public IActionResult GetRolesList()
-        {
-            var roles = _roleManager.Roles.Where(o => new List<string> { "author", "user" }.Contains(o.Name))
-                .ProjectTo<RoleLookupDto>(_mapper.ConfigurationProvider).ToList();
-
-            if (roles.Count() == 0) return NotFound(new Error { Message = "Роли не найдены" });
-
-            return Ok(new RoleViewModel
-            {
-                Roles = roles
-            });
         }
 
         /// <summary>
@@ -134,12 +105,12 @@ namespace Portfol.io.Identity.Controllers
         /// 
         ///     GET /api/user/all
         /// </remarks>
-        /// <returns>Returns <see cref="UsersViewModel"/></returns>
+        /// <returns>Returns <see cref="UsersDto"/></returns>
         /// <response code="404">If the user is not found. </response>
         /// <response code="200">Success</response>
 
         [HttpGet("all")]
-        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(UsersViewModel))]
+        [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(UsersDto))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
         [AllowAnonymous]
         public IActionResult GetUsers()
@@ -153,7 +124,7 @@ namespace Portfol.io.Identity.Controllers
 
             if (users.Count == 0) return NotFound(new Error { Message = "Пользователи не найдены" });
 
-            return Ok(new UsersViewModel
+            return Ok(new UsersDto
             {
                 Users = users
             });
@@ -337,7 +308,7 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
-        public async Task<IActionResult> UpdateUserDetails([FromBody] UpdateUserDetailsViewModel model)
+        public async Task<IActionResult> UpdateUserDetails([FromBody] UpdateUserDetailsDto model)
         {
             if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 

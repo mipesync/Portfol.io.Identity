@@ -1,6 +1,6 @@
-namespace Portfol.io.Identity.ViewModels
+namespace Portfol.io.Identity.DTO
 {
-    public class ErrorViewModel
+    public class ErrorDto
     {
         public string? RequestId { get; set; }
 

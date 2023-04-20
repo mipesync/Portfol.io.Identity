@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Portfol.io.Identity.ViewModels
+namespace Portfol.io.Identity.DTO
 {
-    public class RefreshTokenViewModel
+    public class RefreshTokenDto
     {
 
         [Required]

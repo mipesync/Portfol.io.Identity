@@ -2,12 +2,12 @@
 using Portfol.io.Identity.Common.Mappings;
 using Portfol.io.Identity.Models;
 
-namespace Portfol.io.Identity.ViewModels.ResponseModels.UserResponseModel
+namespace Portfol.io.Identity.DTO.ResponseModels.UserResponseModel
 {
     public class UserShortDetailsResponse : IMapWith<AppUser>
     {
         public string Id { get; set; } = null!;
-        public string Username{ get; set; } = null!;
+        public string Username { get; set; } = null!;
         public string FirstName { get; set; } = null!;
         public string LastName { get; set; } = null!;
         public string ProfileImagePath { get; set; } = null!;

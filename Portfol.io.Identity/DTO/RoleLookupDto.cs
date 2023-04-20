@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Portfol.io.Identity.Common.Mappings;
 
-namespace Portfol.io.Identity.ViewModels
+namespace Portfol.io.Identity.DTO
 {
     public class RoleLookupDto : IMapWith<IdentityRole>
     {

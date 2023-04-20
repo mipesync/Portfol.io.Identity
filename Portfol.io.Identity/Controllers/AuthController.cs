@@ -4,12 +4,12 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Portfol.io.Identity.Common.TokenIssue;
+using Portfol.io.Identity.DTO;
+using Portfol.io.Identity.DTO.ResponseModels;
+using Portfol.io.Identity.DTO.ResponseModels.AuthResponseModels;
 using Portfol.io.Identity.Interfaces;
 using Portfol.io.Identity.Models;
 using Portfol.io.Identity.Repositories;
-using Portfol.io.Identity.ViewModels;
-using Portfol.io.Identity.ViewModels.ResponseModels;
-using Portfol.io.Identity.ViewModels.ResponseModels.AuthResponseModels;
 using Swashbuckle.AspNetCore.Annotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
@@ -74,7 +74,7 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status403Forbidden, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
-        public async Task<IActionResult> Login([FromBody] LoginViewModel model)
+        public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
             if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
@@ -116,7 +116,7 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status200OK, type: typeof(RegisterResponse))]
         [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
-        public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
+        public async Task<IActionResult> Register([FromBody] RegisterDto model)
         {
             if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 
@@ -178,7 +178,7 @@ namespace Portfol.io.Identity.Controllers
         [SwaggerResponse(statusCode: StatusCodes.Status204NoContent, type: null)]
         [SwaggerResponse(statusCode: StatusCodes.Status400BadRequest, type: typeof(Error))]
         [SwaggerResponse(statusCode: StatusCodes.Status404NotFound, type: typeof(Error))]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordViewModel model)
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto model)
         {
             if (!ModelState.IsValid) return BadRequest(new Error { Message = "Некорректные входные данные" });
 

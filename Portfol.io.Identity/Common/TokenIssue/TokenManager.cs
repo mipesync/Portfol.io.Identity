@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
+using Portfol.io.Identity.Common.Enums;
 using Portfol.io.Identity.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -8,10 +9,10 @@ namespace Portfol.io.Identity.Common.TokenIssue
 {
     public class TokenManager : ITokenManager
     {
-        public Task<JwtSecurityToken> CreateAccessTokenAsync(IdentityUser user, string role)
+        public Task<JwtSecurityToken> CreateAccessTokenAsync(IdentityUser user, Roles role)
         {
             var claims = new List<Claim> { new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.NameIdentifier, user.Id), new Claim(ClaimTypes.Role, role) };
+                new Claim(ClaimTypes.NameIdentifier, user.Id), new Claim(ClaimTypes.Role, role.ToString()) };
 
             var jwt = new JwtSecurityToken(
                 issuer: JwtOptions.ISSUER,

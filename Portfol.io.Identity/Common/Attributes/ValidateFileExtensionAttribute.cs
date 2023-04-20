@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Portfol.io.Identity.ViewModels.ResponseModels;
+using Portfol.io.Identity.DTO.ResponseModels;
 
 namespace Portfol.io.Identity.Common.Attributes
 {

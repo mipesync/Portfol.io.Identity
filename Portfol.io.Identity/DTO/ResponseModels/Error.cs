@@ -1,4 +1,4 @@
-﻿namespace Portfol.io.Identity.ViewModels.ResponseModels
+﻿namespace Portfol.io.Identity.DTO.ResponseModels
 {
     public class Error
     {

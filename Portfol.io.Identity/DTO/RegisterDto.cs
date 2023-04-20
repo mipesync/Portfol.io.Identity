@@ -1,9 +1,9 @@
 ﻿using Portfol.io.Identity.Common.Enums;
 using System.ComponentModel.DataAnnotations;
 
-namespace Portfol.io.Identity.ViewModels
+namespace Portfol.io.Identity.DTO
 {
-    public class RegisterViewModel
+    public class RegisterDto
     {
         [Required]
         public string Username { get; set; } = null!;

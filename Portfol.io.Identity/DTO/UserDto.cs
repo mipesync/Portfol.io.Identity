@@ -2,7 +2,7 @@
 using Portfol.io.Identity.Common.Mappings;
 using Portfol.io.Identity.Models;
 
-namespace Portfol.io.Identity.ViewModels
+namespace Portfol.io.Identity.DTO
 {
     public class UserDto : IMapWith<AppUser>
     {

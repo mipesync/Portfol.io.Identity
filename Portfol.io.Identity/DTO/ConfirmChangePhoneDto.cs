@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Portfol.io.Identity.ViewModels
+namespace Portfol.io.Identity.DTO
 {
-    public class ConfirmChangePhoneViewModel
+    public class ConfirmChangePhoneDto
     {
         [Required]
         public string UserId { get; set; } = null!;

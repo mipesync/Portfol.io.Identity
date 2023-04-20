@@ -1,5 +1,5 @@
-﻿using Portfol.io.Identity.ViewModels;
-using Portfol.io.Identity.ViewModels.ResponseModels.AuthResponseModels;
+﻿using Portfol.io.Identity.DTO;
+using Portfol.io.Identity.DTO.ResponseModels.AuthResponseModels;
 
 namespace Portfol.io.Identity.Repositories
 {
@@ -13,14 +13,14 @@ namespace Portfol.io.Identity.Repositories
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
-        Task<LoginResponse> Login(LoginViewModel model);
+        Task<LoginResponse> Login(LoginDto model);
 
         /// <summary>
         /// Метод регистрации
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
-        Task<RegisterResponse> Register(RegisterViewModel model);
+        Task<RegisterResponse> Register(RegisterDto model);
 
         /// <summary>
         /// Метод подтверждения смены пароля
@@ -35,7 +35,7 @@ namespace Portfol.io.Identity.Repositories
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
-        Task ResetPassword(ResetPasswordViewModel model);
+        Task ResetPassword(ResetPasswordDto model);
 
         /// <summary>
         /// Метод отправки письма подтверждения почты
